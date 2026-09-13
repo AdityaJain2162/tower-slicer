@@ -1,7 +1,7 @@
 # Tower Slicer CI/CD — single pipeline with staged jobs.
 #
 # Stage 1 (ci):       Typecheck, runtime tests, ad config validation, web build
-# Stage 2 (apk):     Debug APK with native AdMob test ads (depends on ci passing)
+# Stage 2 (apk):     Release APK with native AdMob test ads (depends on ci passing)
 #
 # The APK build runs `expo prebuild` + Gradle directly in the runner — no EAS,
 # no Expo account, no secrets required. The ubuntu-latest runner already has
@@ -61,7 +61,7 @@ jobs:
           path: dist-web
           retention-days: 7
 
-  # ── Stage 2: Debug APK build (only on main, after CI passes) ────────
+  # ── Stage 2: Release APK build (only on main, after CI passes) ──────
   apk:
     needs: ci
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -88,16 +88,22 @@ jobs:
       - name: Generate native Android project
         run: npx expo prebuild --platform android --no-install
 
-      - name: Build debug APK
+      - name: Build release APK
         working-directory: android
         env:
           ANDROID_HOME: /usr/local/lib/android/sdk
           GRADLE_OPTS: -Dorg.gradle.daemon=false -Xmx2g
-        run: ./gradlew assembleDebug --no-daemon
+          NODE_ENV: production
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Rename APK to fixed filename
+        run: |
+          mkdir -p artifact
+          cp android/app/build/outputs/apk/release/*.apk artifact/tower-slicer.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tower-slicer-debug-apk
-          path: android/app/build/outputs/apk/debug/*.apk
+          name: tower-slicer-apk
+          path: artifact/tower-slicer.apk
           retention-days: 30
