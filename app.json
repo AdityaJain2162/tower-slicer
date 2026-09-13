@@ -15,7 +15,14 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#0f0f1a"
-      }
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ],
+      "package": "com.anonymous.towerslicer"
     },
     "plugins": [
       "expo-font",
