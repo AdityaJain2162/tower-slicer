@@ -47,3 +47,38 @@ export async function hapticMiss() {
     /* no-op */
   }
 }
+
+// ── Orbit Rush: Neon Switch haptic cues ────────────────────────────────────
+// These map directly to the spec's "Game Juice & Tactile Feedback" requirements
+// for Orbit Rush. They reuse the same global `enabled` flag so the existing
+// mute toggle covers both games.
+
+/** Light impact — played the instant the player toggles between tracks. */
+export async function hapticTrackSwitch() {
+  if (!enabled) return;
+  try {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  } catch {
+    /* no-op: haptics unavailable */
+  }
+}
+
+/** Medium impact — played when a Neon Shard is collected. */
+export async function hapticShard() {
+  if (!enabled) return;
+  try {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  } catch {
+    /* no-op */
+  }
+}
+
+/** Error notification — played on a crash / game over (Orbit Rush). */
+export async function hapticCrash() {
+  if (!enabled) return;
+  try {
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+  } catch {
+    /* no-op */
+  }
+}
