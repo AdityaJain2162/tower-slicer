@@ -1,6 +1,9 @@
 /**
- * useAudio — SFX system built on expo-audio (the modern replacement for
- * expo-av, which was removed in SDK 54+).
+ * useAudio — SFX system with platform-aware playback.
+ *
+ * On native (Expo Go / dev client): uses expo-audio's AudioPlayer.
+ * On web: uses the HTML5 Audio API as a fallback so sounds work in
+ * the browser too.
  *
  * Pre-loads four short sound effects into memory on mount and unloads them
  * on unmount. Exposes a `play(name)` that re-seeks to 0 before playing so
@@ -8,12 +11,12 @@
  * mute toggle is stored in AsyncStorage so the player's preference survives
  * relaunches.
  *
- * Safety: every Audio operation is wrapped in try/catch so the app keeps
- * running in environments where the native audio module is unavailable
- * (e.g. Expo Go without the module, or a corrupt load): play() simply
- * becomes a no-op with a console.warn. The app never crashes.
+ * Safety: every audio operation is wrapped in try/catch so the app keeps
+ * running in environments where audio is unavailable: play() simply becomes
+ * a no-op with a console.warn. The app never crashes.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type SfxName = 'snap' | 'combo' | 'gameOver' | 'revive';
@@ -39,11 +42,23 @@ export interface UseAudioResult {
   play: (name: SfxName) => void;
 }
 
+/**
+ * Resolve a required asset to a URI string usable by HTML5 Audio on web.
+ * Metro resolves `require()` to various shapes depending on platform and
+ * build mode; this normalizes them to a string URL.
+ */
+function assetToUri(asset: any): string {
+  if (typeof asset === 'string') return asset;
+  if (asset?.uri) return asset.uri;
+  if (asset?.default) return assetToUri(asset.default);
+  // Fallback: stringify in case it's a number or other shape.
+  return String(asset);
+}
+
 export function useAudio(): UseAudioResult {
   const [muted, setMuted] = useState(false);
   const [ready, setReady] = useState(false);
-  // AudioPlayer instances (expo-audio). Typed as any to avoid coupling this
-  // file to the native types, which may not resolve in all environments.
+  // Player instances — either expo-audio AudioPlayer or HTML5 Audio.
   const playersRef = useRef<Partial<Record<SfxName, any>>>({});
   const audioAvailableRef = useRef(true);
 
@@ -69,15 +84,41 @@ export function useAudio(): UseAudioResult {
   useEffect(() => {
     let active = true;
 
+    if (Platform.OS === 'web') {
+      // ── Web: use HTML5 Audio API ──────────────────────────────────────
+      for (const name of Object.keys(SOUND_ASSETS) as SfxName[]) {
+        try {
+          const uri = assetToUri(SOUND_ASSETS[name]);
+          const audio = new Audio(uri);
+          audio.volume = 1;
+          audio.preload = 'auto';
+          if (!active) return;
+          playersRef.current[name] = audio;
+        } catch (e) {
+          console.warn(`[audio] failed to create web Audio for "${name}":`, e);
+        }
+      }
+      return () => {
+        active = false;
+        const players = playersRef.current;
+        playersRef.current = {};
+        for (const name of Object.keys(players) as SfxName[]) {
+          try {
+            players[name].pause();
+            players[name].src = '';
+          } catch {
+            /* no-op */
+          }
+        }
+      };
+    }
+
+    // ── Native: use expo-audio ──────────────────────────────────────────
     (async () => {
-      // Dynamically import expo-audio so the file doesn't crash at import
-      // time if the module is unavailable. In Expo Go SDK 57+ expo-audio is
-      // bundled, but this guard makes the hook robust in any environment.
       let AudioModule: any = null;
       try {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const expoAudio = require('expo-audio');
-        // The AudioPlayer class lives on the default export's AudioModule.
         AudioModule = expoAudio.default || expoAudio.AudioModule || expoAudio;
       } catch {
         console.warn('[audio] expo-audio module not available — sounds will be silent');
@@ -94,7 +135,6 @@ export function useAudio(): UseAudioResult {
 
       for (const name of Object.keys(SOUND_ASSETS) as SfxName[]) {
         try {
-          // Constructor signature: (source, updateInterval, keepAudioSessionActive, preferredForwardBufferDuration)
           const player = new AudioPlayerCtor(SOUND_ASSETS[name], 500, false, 0);
           player.volume = 1;
           if (!active) {
@@ -137,9 +177,15 @@ export function useAudio(): UseAudioResult {
       const player = playersRef.current[name];
       if (!player) return;
       try {
-        // Seek to start and play. expo-audio uses seekTo() + play().
-        player.seekTo(0);
-        player.play();
+        if (Platform.OS === 'web') {
+          // HTML5 Audio: seek to start and play.
+          player.currentTime = 0;
+          player.play().catch(() => { /* autoplay policy — ignore */ });
+        } else {
+          // expo-audio: seek to start and play.
+          player.seekTo(0);
+          player.play();
+        }
       } catch (e) {
         console.warn(`[audio] failed to play "${name}":`, e);
       }
