@@ -66,6 +66,8 @@ export interface UseGameEngineResult {
   handleTap: () => void;
   /** Restart immediately from GAMEOVER. */
   restart: () => void;
+  /** Remove a finished falling sliced piece by id. */
+  removeSlicedPiece: (id: number) => void;
 }
 
 export function useGameEngine(): UseGameEngineResult {
@@ -109,7 +111,9 @@ export function useGameEngine(): UseGameEngineResult {
     setSlicedPieces([]);
     setScore(0);
     setStreak(0);
-    towerShiftY.value = 0;
+    // towerShiftY = activeLayer * BLOCK_HEIGHT keeps the active layer (layer 1)
+    // vertically centered while the foundation sits one block below it.
+    towerShiftY.value = BLOCK_HEIGHT;
     activeX.value = -HALF_SCREEN_WIDTH;
     setActive({
       width: BASE_BLOCK_WIDTH,
@@ -129,6 +133,10 @@ export function useGameEngine(): UseGameEngineResult {
     reset();
     setGameState('PLAYING');
   }, [reset]);
+
+  const removeSlicedPiece = useCallback((id: number) => {
+    setSlicedPieces((prev) => prev.filter((p) => p.id !== id));
+  }, []);
 
   const handleTap = useCallback(() => {
     if (gameState !== 'PLAYING') return;
@@ -208,7 +216,8 @@ export function useGameEngine(): UseGameEngineResult {
       start,
       handleTap,
       restart,
+      removeSlicedPiece,
     }),
-    [gameState, score, streak, best, bestLoading, tower, slicedPieces, active, activeX, towerShiftY, start, handleTap, restart],
+    [gameState, score, streak, best, bestLoading, tower, slicedPieces, active, activeX, towerShiftY, start, handleTap, restart, removeSlicedPiece],
   );
 }
