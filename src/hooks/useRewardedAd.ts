@@ -7,12 +7,14 @@
  * (rewarded or dismissed) the next one is automatically reloaded.
  *
  * Safe fallback: in Expo Go or any environment where the native
- * react-native-google-mobile-ads module is unavailable, the hook switches to
- * "mock mode" — `isLoaded` becomes true and `showAd` immediately fires the
- * reward callback. This keeps the revive flow fully testable locally without
- * a dev-client build, and never crashes the app.
+ * react-native-google-mobile-ads module is unavailable, the hook switches
+ * to "mock mode" — `isLoaded` becomes true and `showAd` simulates an ad:
+ * a 2-second loading timer fires, then the reward callback is invoked so
+ * the revive flow is fully testable without a dev-client build. The app
+ * never crashes.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, Platform } from 'react-native';
 import { Ads } from '@/services/ads';
 import { REWARDED_AD_ID } from '@/config/ads';
 
@@ -21,7 +23,7 @@ export interface UseRewardedAdResult {
   isLoaded: boolean;
   /**
    * Show the rewarded ad. `onReward` is called once the user earns the reward.
-   * In mock mode this fires immediately so the revive flow is testable.
+   * In mock mode this simulates a 2-second ad then fires the callback.
    */
   showAd: (onReward: () => void) => void;
 }
@@ -36,7 +38,7 @@ export function useRewardedAd(): UseRewardedAdResult {
     let mounted = true;
     let unsubs: Array<() => void> = [];
 
-    // No native module available -> mock mode (Expo Go / local).
+    // No native module available -> mock mode (Expo Go / local / web).
     if (!Ads) {
       mockRef.current = true;
       setIsLoaded(true);
@@ -115,22 +117,41 @@ export function useRewardedAd(): UseRewardedAdResult {
   const showAd = useCallback(
     (onReward: () => void) => {
       rewardCbRef.current = onReward;
+
       if (mockRef.current) {
-        // Mock mode: simulate an instant rewarded view.
-        const cb = rewardCbRef.current;
-        rewardCbRef.current = null;
-        if (cb) cb();
+        // Mock mode: simulate a 2-second rewarded ad, then fire the reward.
+        // On native, show a simple alert so the tester sees something.
+        if (Platform.OS !== 'web') {
+          Alert.alert(
+            'Simulating Rewarded Ad',
+            'Reward will be granted in 2 seconds...',
+          );
+        }
+        setTimeout(() => {
+          const cb = rewardCbRef.current;
+          rewardCbRef.current = null;
+          if (cb) cb();
+        }, 2000);
         return;
       }
+
       const ad = adRef.current;
       if (!ad) return;
       try {
         ad.show();
       } catch {
         // Not actually loaded — fall back to mock so the flow still works.
-        const cb = rewardCbRef.current;
-        rewardCbRef.current = null;
-        if (cb) cb();
+        if (Platform.OS !== 'web') {
+          Alert.alert(
+            'Simulating Rewarded Ad',
+            'Reward will be granted in 2 seconds...',
+          );
+        }
+        setTimeout(() => {
+          const cb = rewardCbRef.current;
+          rewardCbRef.current = null;
+          if (cb) cb();
+        }, 2000);
       }
     },
     [],

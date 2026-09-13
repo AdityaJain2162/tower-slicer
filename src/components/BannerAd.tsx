@@ -21,7 +21,18 @@ export function BannerAd() {
   }
 
   // Native with dev client → real AdMob banner.
+  // Check that BannerView and AdSize actually exist before rendering —
+  // in Expo Go the module may be requireable but the native view isn't
+  // linked, so BannerView would be undefined and crash on render.
   const { BannerView, AdSize } = Ads;
+  if (typeof BannerView !== 'function' || !AdSize) {
+    return (
+      <View style={styles.placeholder} pointerEvents="none">
+        <Text style={styles.placeholderText}>Ad Banner Placeholder</Text>
+      </View>
+    );
+  }
+
   try {
     return (
       <View style={styles.container}>
