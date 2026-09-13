@@ -74,22 +74,15 @@ Two workflows live in `.github/workflows/`:
 - Uploads the web build as an artifact
 
 ### dev-build.yml — runs on push to main + manual trigger
-- Builds a **dev-client APK** via EAS using the `development` profile
+- Builds a **debug APK** directly in the GitHub Actions runner using
+  `expo prebuild` + Gradle — no EAS, no Expo account, no paid cloud builds
 - Uses Google's official test ad unit IDs (`USE_TEST_ADS=true`)
 - The APK includes the native `react-native-google-mobile-ads` module so
   real test ads render (unlike Expo Go where ads fall back to mock mode)
-- Check the EAS dashboard for the download URL after the build completes
+- The APK is uploaded as a workflow artifact (30-day retention)
+- **No GitHub Secrets required** — builds entirely locally in the runner
 
-### Required GitHub Secrets for dev-build.yml
-1. `EXPO_TOKEN` — generate at
-   https://expo.dev/accounts/[you]/settings/access-tokens
-2. `EAS_PROJECT_ID` — run `eas build:configure` locally once; it writes
-   `extra.eas.projectId` into `app.json`. Copy that value.
-
-Add secrets at: GitHub repo → Settings → Secrets and variables → Actions
-→ New repository secret.
-
-### EAS build profiles (eas.json)
+### EAS build profiles (eas.json) — optional, for cloud builds
 - `development` — dev client APK with test ads (for ad verification)
 - `preview` — APK for internal testing
 - `production` — AAB for Play Store submission

@@ -1,23 +1,16 @@
-# Dev-client APK build — builds a development client APK with Google test ads
-# and uploads it as a workflow artifact you can install on your phone.
+# Local APK build — builds a debug APK directly in the GitHub Actions runner
+# using `expo prebuild` + Gradle. No EAS, no Expo account, no paid cloud
+# builds needed. The APK includes native react-native-google-mobile-ads so
+# real Google test ads render.
 #
 # Triggers:
-#   - On push to main (after CI passes)
 #   - Manually via "Run workflow" in the Actions tab
+#   - On push to main (after CI passes)
 #
-# Required GitHub Secrets (Settings → Secrets and variables → Actions):
-#   EXPO_TOKEN      — your Expo access token (https://expo.dev/accounts/[you]/settings/access-tokens)
-#   EAS_PROJECT_ID  — your EAS project ID (run `eas build:configure` locally once, then copy the
-#                     extra.eas.projectId from app.json)
+# No GitHub Secrets required — this builds entirely locally in the runner.
 #
-# The build uses the "development" profile from eas.json which:
-#   - Sets developmentClient: true (includes dev tools + native modules)
-#   - Sets distribution: internal (not for Play Store)
-#   - Builds an .apk (installable directly, no signing needed)
-#   - Sets USE_TEST_ADS=true (Google's official test ad unit IDs)
-#
-# To install the APK: download the artifact from the workflow run, transfer to
-# your phone, and install it (enable "Install unknown apps" for your file
+# To install the APK: download the artifact from the workflow run, transfer
+# to your phone, and install it (enable "Install unknown apps" for your file
 # manager). Open the app → play until game over → tap "Revive & Keep Tower"
 # → you should see a real Google test rewarded ad render.
 name: Dev Build (APK)
@@ -30,6 +23,7 @@ on:
 jobs:
   dev-build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -39,25 +33,34 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: temurin
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: |
+            platforms;android-35
+            build-tools;35.0.0
+
       - name: Install dependencies
         run: npm ci
 
-      - name: Setup EAS CLI
-        run: npm install -g eas-cli
+      - name: Generate native Android project
+        run: npx expo prebuild --platform android --no-install
 
-      - name: Build dev-client APK
+      - name: Build debug APK
+        working-directory: android
         env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: eas build --profile development --platform android --non-interactive --no-wait
+          GRADLE_OPTS: -Dorg.gradle.daemon=false -Xmx2g
+        run: ./gradlew assembleDebug --no-daemon
 
-      - name: Get build URL
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: |
-          # Wait for the build to complete and get the download URL
-          # EAS build takes ~10-15 minutes on the free tier
-          echo "Build submitted. Check the EAS dashboard for the download URL:"
-          echo "https://expo.dev/accounts/[your-account]/projects/tower-slicer/builds"
-          echo ""
-          echo "Or run locally to get the URL:"
-          echo "  eas build:list --platform android --status finished"
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tower-slicer-debug-apk
+          path: android/app/build/outputs/apk/debug/*.apk
+          retention-days: 30
