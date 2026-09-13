@@ -16,9 +16,11 @@ import type { PlacedBlock } from '@/types';
 
 export interface BlockProps {
   block: PlacedBlock;
+  /** True for the top-most placed block (gets the dynamic glow). */
+  isTop?: boolean;
 }
 
-export const Block = React.memo(function Block({ block }: BlockProps) {
+export const Block = React.memo(function Block({ block, isTop = false }: BlockProps) {
   // Vertical offset within the container: layer 0 at the bottom, higher layers
   // stack upward (negative Y). Combined with the parent's towerShiftY this
   // keeps the active layer centered.
@@ -30,12 +32,14 @@ export const Block = React.memo(function Block({ block }: BlockProps) {
     <Animated.View
       style={[
         styles.block,
+        isTop && styles.topGlow,
         {
           left: SCREEN.width / 2 + block.x,
           width: block.width,
           height: block.height,
           backgroundColor: block.color,
         },
+        isTop && { shadowColor: block.color },
         animatedStyle,
       ]}
       pointerEvents="none"
@@ -53,5 +57,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3,
     elevation: 3,
+  },
+  topGlow: {
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 8,
   },
 });

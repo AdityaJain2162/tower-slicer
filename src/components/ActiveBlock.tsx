@@ -76,6 +76,7 @@ export const ActiveBlock = React.memo(function ActiveBlock({
           width,
           height: BLOCK_HEIGHT,
           backgroundColor: color,
+          shadowColor: color,
         },
         animatedStyle,
       ]}
@@ -89,10 +90,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     borderRadius: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.35,
-    shadowRadius: 5,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 8,
   },
 });

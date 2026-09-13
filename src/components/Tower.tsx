@@ -71,8 +71,8 @@ export const Tower = React.memo(function Tower({
       style={[styles.container, { top: SCREEN.height / 2 }, containerStyle]}
       pointerEvents="none"
     >
-      {tower.map((block) => (
-        <Block key={block.id} block={block} />
+      {tower.map((block, i) => (
+        <Block key={block.id} block={block} isTop={i === tower.length - 1} />
       ))}
       {slicedPieces.map((piece) => (
         <SlicedPiece key={`slice-${piece.id}`} piece={piece} onDone={handleDone} />

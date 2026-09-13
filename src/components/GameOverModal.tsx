@@ -1,5 +1,7 @@
 /**
- * GameOverModal — shown on GAMEOVER: current score vs personal best + Restart.
+ * GameOverModal — shown on GAMEOVER: current score vs personal best, plus a
+ * Restart button and (when available) a one-shot "Revive & Keep Tower" button
+ * backed by a rewarded ad.
  */
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -9,14 +11,19 @@ export interface GameOverModalProps {
   score: number;
   best: number;
   isNewBest: boolean;
+  /** True when a revive is still allowed this run and an ad is ready. */
+  canRevive: boolean;
   onRestart: () => void;
+  onRevive: () => void;
 }
 
 export const GameOverModal = React.memo(function GameOverModal({
   score,
   best,
   isNewBest,
+  canRevive,
   onRestart,
+  onRevive,
 }: GameOverModalProps) {
   return (
     <View style={styles.overlay}>
@@ -41,6 +48,20 @@ export const GameOverModal = React.memo(function GameOverModal({
             <Text style={styles.statLabel}>BEST</Text>
           </View>
         </View>
+
+        {canRevive && (
+          <Pressable
+            style={({ pressed }) => [
+              styles.reviveButton,
+              pressed && styles.reviveButtonPressed,
+            ]}
+            onPress={onRevive}
+            android_ripple={{ color: 'rgba(255,255,255,0.2)', radius: 200 }}
+          >
+            <Ionicons name="play-circle" size={20} color="#0f0f1a" />
+            <Text style={styles.reviveText}>Revive & Keep Tower</Text>
+          </Pressable>
+        )}
 
         <Pressable
           style={({ pressed }) => [
@@ -114,6 +135,23 @@ const styles = StyleSheet.create({
     width: 1,
     height: 44,
     backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  reviveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffd166',
+    paddingVertical: 12,
+    paddingHorizontal: 22,
+    borderRadius: 30,
+    marginBottom: 12,
+  },
+  reviveButtonPressed: { opacity: 0.85 },
+  reviveText: {
+    color: '#0f0f1a',
+    fontWeight: '800',
+    marginLeft: 8,
+    letterSpacing: 1,
+    fontSize: 15,
   },
   button: {
     flexDirection: 'row',
