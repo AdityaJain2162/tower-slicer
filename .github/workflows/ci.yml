@@ -1,0 +1,49 @@
+# CI — runs on every push and PR to main.
+# Typecheck, runtime tests, ad config validation, and web build verification.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck (tsc --noEmit)
+        run: npx tsc --noEmit
+
+      - name: Slicing math tests
+        run: npx tsx --tsconfig tsconfig.json src/utils/slicing.test.ts
+
+      - name: Color gradient tests
+        run: npx tsx --tsconfig tsconfig.json src/utils/color.test.ts
+
+      - name: Game engine tests
+        run: npx tsx --tsconfig tsconfig.json src/hooks/useGameEngine.test.ts
+
+      - name: Ad config validation
+        run: npx tsx --tsconfig tsconfig.json src/config/ads.test.ts
+
+      - name: Web build verification
+        run: npx expo export --platform web --output-dir dist-web
+
+      - name: Upload web build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          path: dist-web
+          retention-days: 7

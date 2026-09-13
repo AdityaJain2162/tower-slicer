@@ -3,6 +3,16 @@
     "version": ">= 5.0.0"
   },
   "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "USE_TEST_ADS": "true"
+      }
+    },
     "preview": {
       "android": {
         "buildType": "apk"
@@ -11,7 +21,7 @@
     },
     "production": {
       "android": {
-        "buildType": "apk"
+        "buildType": "app-bundle"
       }
     }
   },

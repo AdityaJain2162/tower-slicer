@@ -23,6 +23,7 @@ React Native Reanimated, and react-native-gesture-handler.
   - `npx tsx --tsconfig tsconfig.json src/utils/slicing.test.ts`
   - `npx tsx --tsconfig tsconfig.json src/utils/color.test.ts`
   - `npx tsx --tsconfig tsconfig.json src/hooks/useGameEngine.test.ts`
+  - `npx tsx --tsconfig tsconfig.json src/config/ads.test.ts`
 
 ## Architecture
 
@@ -61,3 +62,34 @@ For real rewarded ads, build a dev client:
 All motion is driven by Reanimated SharedValues + animated styles on the
 UI thread. No `setInterval` or JS-thread `requestAnimationFrame` is used
 for block movement.
+
+## CI/CD (GitHub Actions)
+
+Two workflows live in `.github/workflows/`:
+
+### ci.yml — runs on every push/PR to main
+- Typecheck (`tsc --noEmit`)
+- Runtime tests (slicing, color, engine, ad config validation)
+- Web build verification (`expo export --platform web`)
+- Uploads the web build as an artifact
+
+### dev-build.yml — runs on push to main + manual trigger
+- Builds a **dev-client APK** via EAS using the `development` profile
+- Uses Google's official test ad unit IDs (`USE_TEST_ADS=true`)
+- The APK includes the native `react-native-google-mobile-ads` module so
+  real test ads render (unlike Expo Go where ads fall back to mock mode)
+- Check the EAS dashboard for the download URL after the build completes
+
+### Required GitHub Secrets for dev-build.yml
+1. `EXPO_TOKEN` — generate at
+   https://expo.dev/accounts/[you]/settings/access-tokens
+2. `EAS_PROJECT_ID` — run `eas build:configure` locally once; it writes
+   `extra.eas.projectId` into `app.json`. Copy that value.
+
+Add secrets at: GitHub repo → Settings → Secrets and variables → Actions
+→ New repository secret.
+
+### EAS build profiles (eas.json)
+- `development` — dev client APK with test ads (for ad verification)
+- `preview` — APK for internal testing
+- `production` — AAB for Play Store submission
