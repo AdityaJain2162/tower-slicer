@@ -116,10 +116,21 @@ export function useAudio(): UseAudioResult {
     // ── Native: use expo-audio ──────────────────────────────────────────
     (async () => {
       let AudioModule: any = null;
+      let resolveSource: ((s: any) => any) | null = null;
       try {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const expoAudio = require('expo-audio');
         AudioModule = expoAudio.default || expoAudio.AudioModule || expoAudio;
+        // resolveSource converts a require()'d asset (number) into the
+        // { uri, name, assetId } object the native AudioPlayer expects.
+        resolveSource = expoAudio.resolveSource || null;
+        // resolveSource may live in the utils subpath.
+        if (!resolveSource) {
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            resolveSource = require('expo-audio/build/utils/resolveSource').resolveSource;
+          } catch { /* ignore */ }
+        }
       } catch {
         console.warn('[audio] expo-audio module not available — sounds will be silent');
         audioAvailableRef.current = false;
@@ -135,7 +146,11 @@ export function useAudio(): UseAudioResult {
 
       for (const name of Object.keys(SOUND_ASSETS) as SfxName[]) {
         try {
-          const player = new AudioPlayerCtor(SOUND_ASSETS[name], 500, false, 0);
+          // Resolve the require()'d asset to a source object the native
+          // constructor expects. Without this, passing a raw number throws
+          // "Cannot convert '23' to a Kotlin type: expected Map, got a double".
+          const source = resolveSource ? resolveSource(SOUND_ASSETS[name]) : SOUND_ASSETS[name];
+          const player = new AudioPlayerCtor(source, 500, false, 0);
           player.volume = 1;
           if (!active) {
             try { player.release(); } catch { /* no-op */ }
