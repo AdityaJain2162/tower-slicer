@@ -11,13 +11,15 @@ export const BLOCK_HEIGHT = 36;
 export const BASE_BLOCK_WIDTH = 200;
 
 /** Tap offset within this many px of the previous block counts as "perfect". */
-export const PERFECT_TOLERANCE_PX = 3;
+export const PERFECT_TOLERANCE_PX = 8;
+/** Alias used by the difficulty spec ("Perfect Snap" tolerance). */
+export const SNAP_TOLERANCE = PERFECT_TOLERANCE_PX;
 
 /** Cycle duration (ms) for the oscillation at the start of a run. */
-export const INITIAL_CYCLE_MS = 1800;
+export const INITIAL_CYCLE_MS = 2400;
 
 /** Floor for cycle duration as speed ramps up. */
-export const MIN_CYCLE_MS = 800;
+export const MIN_CYCLE_MS = 1100;
 
 /** Every N placed blocks, shave this many ms off the cycle duration. */
 export const SPEED_STEP_EVERY = 5;
@@ -31,3 +33,8 @@ export const HIGH_SCORE_KEY = '@tower_slicer/high_score';
 
 /** Vertical offset (px) the active layer sits above the tower anchor. */
 export const ACTIVE_LAYER_OFFSET = BLOCK_HEIGHT;
+
+/** Combo Expansion: consecutive perfect placements build comboStreak. */
+export const COMBO_EXPANSION_THRESHOLD = 5;
+/** Width (px) added to the placed block on a combo-expansion reward. */
+export const COMBO_EXPANSION_PX = 14;

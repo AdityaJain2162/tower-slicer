@@ -61,3 +61,10 @@ export interface SliceResult {
 export interface HighScoreRecord {
   best: number;
 }
+
+/** Event emitted by the engine after each tap, consumed by the UI/audio layer. */
+export type GameEvent =
+  | { type: 'hit'; id: number }
+  | { type: 'perfect'; id: number }
+  | { type: 'expansion'; id: number }
+  | { type: 'miss'; id: number };

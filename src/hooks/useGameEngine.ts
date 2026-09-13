@@ -2,8 +2,9 @@
  * useGameEngine — the brain of Tower Slicer.
  *
  * Owns the finite state machine (IDLE / PLAYING / GAMEOVER), the placed-tower
- * array, the active (moving) block parameters, speed scaling, the streak
- * combo, and the Reanimated SharedValues that the UI thread animates:
+ * array, the active (moving) block parameters, speed scaling, the combo
+ * streak (with combo-expansion rewards), a one-shot revive, and the Reanimated
+ * SharedValues that the UI thread animates:
  *
  *   activeX      — current left-edge X of the moving block (animated by the
  *                  ActiveBlock component's UI-thread loop).
@@ -14,6 +15,9 @@
  * The hook does NOT drive motion with setInterval / JS rAF. Positioning is
  * purely Reanimated SharedValues + animated styles. handleTap reads the
  * current X synchronously from the SharedValue at tap time.
+ *
+ * After each tap the engine emits a `lastEvent` ({type, id}) so the UI/audio
+ * layer can react (floating text, SFX, haptics are already fired here).
  */
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useSharedValue } from 'react-native-reanimated';
@@ -21,6 +25,8 @@ import { useSharedValue } from 'react-native-reanimated';
 import {
   BASE_BLOCK_WIDTH,
   BLOCK_HEIGHT,
+  COMBO_EXPANSION_PX,
+  COMBO_EXPANSION_THRESHOLD,
   HALF_SCREEN_WIDTH,
   INITIAL_CYCLE_MS,
 } from '@/constants';
@@ -29,7 +35,7 @@ import { cycleDurationFor, directionForLayer } from '@/utils/engine';
 import { resolveTap } from '@/utils/slicing';
 import { hapticHit, hapticMiss, hapticPerfect } from '@/services/haptics';
 import { useHighScore } from '@/hooks/useHighScore';
-import type { Direction, GameState, PlacedBlock, SlicedPiece } from '@/types';
+import type { Direction, GameEvent, GameState, PlacedBlock, SlicedPiece } from '@/types';
 
 export interface ActiveBlockParams {
   /** Width of the currently moving block (px). */
@@ -47,6 +53,7 @@ export interface ActiveBlockParams {
 export interface UseGameEngineResult {
   gameState: GameState;
   score: number;
+  /** Consecutive perfect placements (combo streak). Resets on non-perfect. */
   streak: number;
   best: number;
   bestLoading: boolean;
@@ -60,12 +67,18 @@ export interface UseGameEngineResult {
   activeX: ReturnType<typeof useSharedValue<number>>;
   /** SharedValue: vertical offset of the tower container. */
   towerShiftY: ReturnType<typeof useSharedValue<number>>;
+  /** Last tap event for the UI/audio layer to react to (key by event.id). */
+  lastEvent: GameEvent | null;
+  /** True once the player has used their one allowed revive this run. */
+  hasRevived: boolean;
   /** Start a new run from IDLE or GAMEOVER. */
   start: () => void;
   /** Read activeX and resolve the slice. Triggers haptics + state updates. */
   handleTap: () => void;
   /** Restart immediately from GAMEOVER. */
   restart: () => void;
+  /** Use the one-shot revive: reset active block to top width, resume play. */
+  revive: () => void;
   /** Remove a finished falling sliced piece by id. */
   removeSlicedPiece: (id: number) => void;
 }
@@ -78,6 +91,8 @@ export function useGameEngine(): UseGameEngineResult {
   const [slicedPieces, setSlicedPieces] = useState<SlicedPiece[]>([]);
   const [score, setScore] = useState(0);
   const [streak, setStreak] = useState(0);
+  const [lastEvent, setLastEvent] = useState<GameEvent | null>(null);
+  const [hasRevived, setHasRevived] = useState(false);
 
   // Active block params. Layer 0 is the foundation; the first *moving* block
   // is layer 1.
@@ -93,7 +108,7 @@ export function useGameEngine(): UseGameEngineResult {
   const activeX = useSharedValue(0);
   const towerShiftY = useSharedValue(0);
 
-  // Monotonic id counter for placed/sliced pieces.
+  // Monotonic id counter for placed/sliced pieces and events.
   const idRef = useRef(0);
   const nextId = () => ++idRef.current;
 
@@ -111,6 +126,8 @@ export function useGameEngine(): UseGameEngineResult {
     setSlicedPieces([]);
     setScore(0);
     setStreak(0);
+    setLastEvent(null);
+    setHasRevived(false);
     // towerShiftY = activeLayer * BLOCK_HEIGHT keeps the active layer (layer 1)
     // vertically centered while the foundation sits one block below it.
     towerShiftY.value = BLOCK_HEIGHT;
@@ -158,21 +175,38 @@ export function useGameEngine(): UseGameEngineResult {
 
     if (result.miss) {
       hapticMiss();
+      setLastEvent({ type: 'miss', id: nextId() });
       // Freeze the moving block where it was missed for the game-over visual.
       setGameState('GAMEOVER');
       void submitScore(score);
       return;
     }
 
+    let placed = result.placed!;
+    let nextWidth = result.nextWidth;
+
     if (result.perfect) {
       hapticPerfect();
-      setStreak((s) => s + 1);
+      const newStreak = streak + 1;
+      setStreak(newStreak);
+
+      // Combo Expansion: at streak >= 5 and odd, grow the placed block back.
+      if (newStreak >= COMBO_EXPANSION_THRESHOLD && newStreak % 2 === 1) {
+        const expanded = Math.min(placed.width + COMBO_EXPANSION_PX, BASE_BLOCK_WIDTH);
+        // Center the expansion so the block stays balanced on the tower.
+        const dx = (expanded - placed.width) / 2;
+        placed = { ...placed, x: placed.x - dx, width: expanded };
+        nextWidth = expanded;
+        setLastEvent({ type: 'expansion', id: nextId() });
+      } else {
+        setLastEvent({ type: 'perfect', id: nextId() });
+      }
     } else {
       hapticHit();
       setStreak(0);
+      setLastEvent({ type: 'hit', id: nextId() });
     }
 
-    const placed = result.placed!;
     const newTower = [...tower, placed];
     setTower(newTower);
     setScore((s) => s + 1);
@@ -193,13 +227,35 @@ export function useGameEngine(): UseGameEngineResult {
       ? -HALF_SCREEN_WIDTH
       : HALF_SCREEN_WIDTH;
     setActive({
-      width: result.nextWidth,
+      width: nextWidth,
       color: colorForLayer(newLayer),
       layer: newLayer,
       direction: directionForLayer(newLayer),
       cycleMs: cycleDurationFor(newTower.length),
     });
-  }, [gameState, tower, active, activeX, towerShiftY, score, submitScore]);
+  }, [gameState, tower, active, activeX, towerShiftY, score, streak, submitScore]);
+
+  const revive = useCallback(() => {
+    if (gameState !== 'GAMEOVER' || hasRevived) return;
+    setHasRevived(true);
+    // Reset the active (top) block to the width of the layer below it (the
+    // current top placed block) so the next placement can fully overlap.
+    const topPlaced = tower[tower.length - 1];
+    const resetWidth = topPlaced ? topPlaced.width : BASE_BLOCK_WIDTH;
+    const layer = active.layer;
+    activeX.value = directionForLayer(layer) === 'ltr'
+      ? -HALF_SCREEN_WIDTH
+      : HALF_SCREEN_WIDTH;
+    setActive({
+      width: resetWidth,
+      color: colorForLayer(layer),
+      layer,
+      direction: directionForLayer(layer),
+      cycleMs: cycleDurationFor(tower.length),
+    });
+    setLastEvent(null);
+    setGameState('PLAYING');
+  }, [gameState, hasRevived, tower, active.layer, activeX]);
 
   return useMemo(
     () => ({
@@ -213,11 +269,14 @@ export function useGameEngine(): UseGameEngineResult {
       active,
       activeX,
       towerShiftY,
+      lastEvent,
+      hasRevived,
       start,
       handleTap,
       restart,
+      revive,
       removeSlicedPiece,
     }),
-    [gameState, score, streak, best, bestLoading, tower, slicedPieces, active, activeX, towerShiftY, start, handleTap, restart, removeSlicedPiece],
+    [gameState, score, streak, best, bestLoading, tower, slicedPieces, active, activeX, towerShiftY, lastEvent, hasRevived, start, handleTap, restart, revive, removeSlicedPiece],
   );
 }
