@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "Tower Slicer",
+    "slug": "tower-slicer",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#0f0f1a"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0f0f1a"
+      }
+    },
+    "plugins": ["expo-haptics"]
+  }
+}
