@@ -33,10 +33,27 @@ React Native Reanimated, and react-native-gesture-handler.
 - `src/utils` — pure logic: `slicing.ts` (overlap + slice math),
   `color.ts` (HSL gradient), `engine.ts` (speed scaling + direction).
 - `src/services/haptics.ts` — expo-haptics wrapper (all try/catch guarded).
+- `src/services/ads.ts` / `ads.native.ts` — platform-split AdMob service
+  (web stub vs native require) so Metro never bundles the native-only ads
+  module on web.
 - `src/hooks` — `useHighScore` (AsyncStorage), `useGameEngine` (state
-  machine + Reanimated SharedValues).
+  machine + Reanimated SharedValues + combo expansion + revive),
+  `useAudio` (expo-av SFX + persistent mute), `useRewardedAd` (AdMob
+  rewarded video + mock fallback).
 - `src/components` — `Block`, `SlicedPiece`, `ActiveBlock`, `Tower`,
-  `HUD`, `StartScreen`, `GameOverModal`, `Game` (root).
+  `HUD`, `StartScreen`, `GameOverModal`, `FloatingComboText`, `Game` (root).
+- `src/assets/sounds` — four generated WAV SFX (regenerate via
+  `node scripts/gen-sounds.js`).
+
+## Dev client vs Expo Go
+
+`expo-av` works in Expo Go. `react-native-google-mobile-ads` requires a
+**dev client** (custom native code) — it is not available in Expo Go.
+`useRewardedAd` detects this and falls back to mock mode (the revive button
+still works and fires the reward instantly) so the game runs in Expo Go.
+For real rewarded ads, build a dev client:
+`npx expo run:android` (needs Android SDK) or
+`eas build --profile development --platform android`.
 
 All motion is driven by Reanimated SharedValues + animated styles on the
 UI thread. No `setInterval` or JS-thread `requestAnimationFrame` is used
