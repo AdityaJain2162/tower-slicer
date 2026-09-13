@@ -73,19 +73,29 @@ export function useAudio(): UseAudioResult {
       // Dynamically import expo-audio so the file doesn't crash at import
       // time if the module is unavailable. In Expo Go SDK 57+ expo-audio is
       // bundled, but this guard makes the hook robust in any environment.
-      let expoAudio: any = null;
+      let AudioModule: any = null;
       try {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
-        expoAudio = require('expo-audio');
+        const expoAudio = require('expo-audio');
+        // The AudioPlayer class lives on the default export's AudioModule.
+        AudioModule = expoAudio.default || expoAudio.AudioModule || expoAudio;
       } catch {
         console.warn('[audio] expo-audio module not available — sounds will be silent');
         audioAvailableRef.current = false;
         return;
       }
 
+      const AudioPlayerCtor = AudioModule?.AudioPlayer;
+      if (typeof AudioPlayerCtor !== 'function') {
+        console.warn('[audio] AudioPlayer not available — sounds will be silent');
+        audioAvailableRef.current = false;
+        return;
+      }
+
       for (const name of Object.keys(SOUND_ASSETS) as SfxName[]) {
         try {
-          const player = new expoAudio.AudioPlayer(SOUND_ASSETS[name]);
+          // Constructor signature: (source, updateInterval, keepAudioSessionActive, preferredForwardBufferDuration)
+          const player = new AudioPlayerCtor(SOUND_ASSETS[name], 500, false, 0);
           player.volume = 1;
           if (!active) {
             try { player.release(); } catch { /* no-op */ }
