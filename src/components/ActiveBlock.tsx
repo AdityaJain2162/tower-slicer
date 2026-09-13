@@ -16,6 +16,7 @@ import Animated, {
   withSequence,
   withTiming,
   Easing,
+  type SharedValue,
 } from 'react-native-reanimated';
 
 import { BLOCK_HEIGHT, HALF_SCREEN_WIDTH, SCREEN } from '@/constants';
@@ -24,7 +25,7 @@ import type { ActiveBlockParams } from '@/hooks/useGameEngine';
 export interface ActiveBlockProps {
   params: ActiveBlockParams;
   /** SharedValue driving the block's left-edge X (owned by the engine). */
-  activeX: Animated.SharedValue<number>;
+  activeX: SharedValue<number>;
   /** Vertical layer position (same convention as placed blocks). */
   layerY: number;
   playing: boolean;

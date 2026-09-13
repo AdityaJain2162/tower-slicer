@@ -1,11 +1,14 @@
 /**
  * GameOverModal — shown on GAMEOVER: current score vs personal best, plus a
  * Restart button and (when available) a one-shot "Revive & Keep Tower" button
- * backed by a rewarded ad.
+ * backed by a rewarded ad. Uses Press Start 2P for the title and Inter for
+ * body text.
  */
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+
+import { FONT_DISPLAY, FONT_BODY, FONT_BODY_BOLD, FONT_BODY_EXTRA_BOLD } from '@/hooks/useFonts';
 
 export interface GameOverModalProps {
   score: number;
@@ -81,7 +84,7 @@ export const GameOverModal = React.memo(function GameOverModal({
 
 const styles = StyleSheet.create({
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.55)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -98,9 +101,9 @@ const styles = StyleSheet.create({
   },
   title: {
     color: '#ff6b6b',
-    fontSize: 28,
-    fontWeight: '900',
-    letterSpacing: 3,
+    fontFamily: FONT_DISPLAY,
+    fontSize: 18,
+    letterSpacing: 2,
   },
   newBest: {
     flexDirection: 'row',
@@ -113,7 +116,7 @@ const styles = StyleSheet.create({
   },
   newBestText: {
     color: '#ffd166',
-    fontWeight: '800',
+    fontFamily: FONT_BODY_BOLD,
     marginLeft: 5,
     fontSize: 12,
     letterSpacing: 2,
@@ -124,9 +127,14 @@ const styles = StyleSheet.create({
     marginVertical: 22,
   },
   stat: { alignItems: 'center', paddingHorizontal: 18 },
-  statValue: { color: '#fff', fontSize: 34, fontWeight: '800' },
+  statValue: {
+    color: '#fff',
+    fontFamily: FONT_BODY_EXTRA_BOLD,
+    fontSize: 34,
+  },
   statLabel: {
     color: 'rgba(255,255,255,0.5)',
+    fontFamily: FONT_BODY,
     fontSize: 11,
     letterSpacing: 2,
     marginTop: 2,
@@ -148,7 +156,7 @@ const styles = StyleSheet.create({
   reviveButtonPressed: { opacity: 0.85 },
   reviveText: {
     color: '#0f0f1a',
-    fontWeight: '800',
+    fontFamily: FONT_BODY_BOLD,
     marginLeft: 8,
     letterSpacing: 1,
     fontSize: 15,
@@ -165,7 +173,7 @@ const styles = StyleSheet.create({
   buttonPressed: { opacity: 0.85 },
   buttonText: {
     color: '#0f0f1a',
-    fontWeight: '800',
+    fontFamily: FONT_BODY_BOLD,
     marginLeft: 8,
     letterSpacing: 2,
     fontSize: 15,

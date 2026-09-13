@@ -29,6 +29,8 @@ import { HUD } from './HUD';
 import { StartScreen } from './StartScreen';
 import { GameOverModal } from './GameOverModal';
 import { FloatingComboText } from './FloatingComboText';
+import { Background } from './Background';
+import { BannerAd } from './BannerAd';
 
 const SHAKE_DURATION_MS = 50;
 const SHAKE_COUNT = 6;
@@ -156,8 +158,8 @@ export default function Game() {
         gesture={Gesture.Tap().runOnJS(true).onEnd(() => onTap())}
       >
         <Animated.View style={[styles.stage, shakeStyle]}>
-          {/* Background */}
-          <View style={styles.background} />
+          {/* Background — gradient + grid pattern */}
+          <Background />
 
           <Tower
             tower={tower}
@@ -208,6 +210,11 @@ export default function Game() {
           onRevive={handleRevive}
         />
       )}
+
+      {/* Bottom banner ad (placeholder in Expo Go / web; real ad with dev client) */}
+      <View style={styles.bannerWrap}>
+        <BannerAd />
+      </View>
     </GestureHandlerRootView>
   );
 }
@@ -215,12 +222,15 @@ export default function Game() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#0f0f1a' },
   stage: { flex: 1, overflow: 'hidden' },
-  background: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#0f0f1a',
-  },
   flash: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: '#ff3b3b',
+  },
+  bannerWrap: {
+    position: 'absolute',
+    bottom: 16,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
   },
 });

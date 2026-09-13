@@ -13,6 +13,7 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   Easing,
+  type SharedValue,
 } from 'react-native-reanimated';
 
 import { BLOCK_HEIGHT, SCREEN } from '@/constants';
@@ -26,8 +27,8 @@ export interface TowerProps {
   tower: PlacedBlock[];
   slicedPieces: SlicedPieceType[];
   active: ActiveBlockParams;
-  activeX: Animated.SharedValue<number>;
-  towerShiftY: Animated.SharedValue<number>;
+  activeX: SharedValue<number>;
+  towerShiftY: SharedValue<number>;
   playing: boolean;
   onSlicedDone: (id: number) => void;
 }

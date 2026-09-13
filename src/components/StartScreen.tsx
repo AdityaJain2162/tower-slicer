@@ -1,9 +1,12 @@
 /**
  * StartScreen — IDLE state overlay: title, best score, and "Tap to Play".
+ * Uses Press Start 2P for the title (retro arcade vibe) and Inter for body.
  */
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+
+import { FONT_DISPLAY, FONT_BODY, FONT_BODY_BOLD } from '@/hooks/useFonts';
 
 export interface StartScreenProps {
   best: number;
@@ -35,24 +38,25 @@ export const StartScreen = React.memo(function StartScreen({
 
 const styles = StyleSheet.create({
   container: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
   },
   title: {
     color: '#fff',
-    fontSize: 44,
-    fontWeight: '900',
-    letterSpacing: 4,
+    fontFamily: FONT_DISPLAY,
+    fontSize: 28,
+    letterSpacing: 2,
     textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowOffset: { width: 0, height: 3 },
     textShadowRadius: 6,
   },
   subtitle: {
     color: 'rgba(255,255,255,0.55)',
+    fontFamily: FONT_BODY,
     fontSize: 14,
     letterSpacing: 2,
-    marginTop: 8,
+    marginTop: 12,
   },
   best: {
     flexDirection: 'row',
@@ -65,7 +69,7 @@ const styles = StyleSheet.create({
   },
   bestText: {
     color: '#ffd166',
-    fontWeight: '700',
+    fontFamily: FONT_BODY_BOLD,
     marginLeft: 6,
     fontSize: 14,
     letterSpacing: 1,
@@ -76,8 +80,8 @@ const styles = StyleSheet.create({
   },
   promptText: {
     color: 'rgba(255,255,255,0.85)',
+    fontFamily: FONT_BODY_BOLD,
     fontSize: 18,
-    fontWeight: '600',
     letterSpacing: 2,
   },
 });
