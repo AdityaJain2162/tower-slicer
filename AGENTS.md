@@ -6,12 +6,12 @@ React Native Reanimated, and react-native-gesture-handler.
 ## Requirements
 
 - **Node 20.x** (LTS). Node 22.18+ and 24 enable native TypeScript
-  type-stripping by default, which breaks Expo SDK 53's CLI (it loads `.ts`
-  source from `node_modules` like `expo-haptics`/`expo-modules-core`).
-  Use Node 20 to run the Expo CLI / web export. With nvm-windows:
-  `nvm install 20 && nvm use 20`.
+  type-stripping by default, which breaks the Expo CLI (it loads `.ts`
+  source from `node_modules`). Use Node 20 to run the Expo CLI / web
+  export. With nvm-windows: `nvm install 20 && nvm use 20`.
 - npm installs use `legacy-peer-deps=true` (see `.npmrc`) to resolve the
-  SDK 53 peer-dependency graph.
+  SDK 57 peer-dependency graph.
+- **Expo SDK 57** — compatible with Expo Go SDK 57 on devices.
 
 ## Commands
 
@@ -36,12 +36,15 @@ React Native Reanimated, and react-native-gesture-handler.
 - `src/services/ads.ts` / `ads.native.ts` — platform-split AdMob service
   (web stub vs native require) so Metro never bundles the native-only ads
   module on web.
+- `src/config/ads.ts` — AdMob ad unit IDs (test IDs by default; swap in
+  real IDs when you have an AdMob account — instructions in the file).
 - `src/hooks` — `useHighScore` (AsyncStorage), `useGameEngine` (state
   machine + Reanimated SharedValues + combo expansion + revive),
   `useAudio` (expo-av SFX + persistent mute), `useRewardedAd` (AdMob
-  rewarded video + mock fallback).
+  rewarded video + mock fallback), `useFonts` (Press Start 2P + Inter).
 - `src/components` — `Block`, `SlicedPiece`, `ActiveBlock`, `Tower`,
-  `HUD`, `StartScreen`, `GameOverModal`, `FloatingComboText`, `Game` (root).
+  `HUD`, `StartScreen`, `GameOverModal`, `FloatingComboText`, `Background`
+  (gradient + grid), `BannerAd` (placeholder/real), `Game` (root).
 - `src/assets/sounds` — four generated WAV SFX (regenerate via
   `node scripts/gen-sounds.js`).
 

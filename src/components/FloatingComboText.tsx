@@ -18,6 +18,8 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 
+import { FONT_DISPLAY } from '@/hooks/useFonts';
+
 export interface FloatingComboTextProps {
   /** Text to display ("PERFECT!", "TOWER EXPANDED!", ...). */
   text: string;
@@ -85,9 +87,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   text: {
-    fontSize: 30,
-    fontWeight: '900',
-    letterSpacing: 2,
+    fontFamily: FONT_DISPLAY,
+    fontSize: 16,
+    letterSpacing: 1,
     textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 6,

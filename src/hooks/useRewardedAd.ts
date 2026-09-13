@@ -1,8 +1,9 @@
 /**
  * useRewardedAd — Google AdMob Rewarded Video with a safe mock fallback.
  *
- * Preloads a rewarded ad using the official AdMob test unit id
- * (`TestIds.REWARDED`) and exposes `{ isLoaded, showAd }`. When an ad closes
+ * Preloads a rewarded ad using the ad unit ID from `src/config/ads.ts`
+ * (Google test IDs by default; swap in real IDs when you have an AdMob
+ * account) and exposes `{ isLoaded, showAd }`. When an ad closes
  * (rewarded or dismissed) the next one is automatically reloaded.
  *
  * Safe fallback: in Expo Go or any environment where the native
@@ -13,6 +14,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Ads } from '@/services/ads';
+import { REWARDED_AD_ID } from '@/config/ads';
 
 export interface UseRewardedAdResult {
   /** True when an ad is ready to show (or in mock mode). */
@@ -41,10 +43,10 @@ export function useRewardedAd(): UseRewardedAdResult {
       return;
     }
 
-    const { RewardedAd, RewardedAdEventType, TestIds } = Ads;
+    const { RewardedAd, RewardedAdEventType } = Ads;
     let ad: any;
     try {
-      ad = RewardedAd.createForAdRequest(TestIds.REWARDED);
+      ad = RewardedAd.createForAdRequest(REWARDED_AD_ID);
     } catch {
       // Native module present in JS but not linked at runtime -> mock mode.
       mockRef.current = true;
