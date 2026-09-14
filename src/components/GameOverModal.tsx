@@ -1,16 +1,9 @@
 /**
  * GameOverModal — end-of-run summary.
  *
- * Originally built for Tower Slicer (score / best / revive), now extended for
- * Orbit Rush: Neon Switch with the monetization hooks from the spec:
- *   - Shards collected this run (when `shards` is provided)
- *   - "🎬 Revive (N left)" rewarded button (when `revivesLeft` is provided)
- *   - "💎 2x Shards" rewarded button (when `onDoubleShards` is provided)
- *
- * Backward compatibility: the original required props (`score`, `best`,
- * `isNewBest`, `canRevive`, `onRestart`, `onRevive`) are unchanged, so the
- * existing Tower Slicer `Game` component keeps typechecking. The Orbit Rush
- * extras are all *optional* and only render when supplied.
+ * Shows the run's score, best, this-run stats (blocks placed, best streak,
+ * perfects), a rewarded revive button (when available), a restart button,
+ * and a home button to return to the start screen.
  *
  * Uses Press Start 2P for the title and Inter for body text.
  */
@@ -28,16 +21,13 @@ export interface GameOverModalProps {
   canRevive: boolean;
   onRestart: () => void;
   onRevive: () => void;
-
-  // ── Orbit Rush extras (all optional) ─────────────────────────────────────
-  /** Shards collected this run. Renders a shard stat when provided. */
-  shards?: number;
-  /** Remaining revives for this run; customizes the revive button label. */
-  revivesLeft?: number;
-  /** True when the 2x Shards rewarded ad is available. */
-  canDoubleShards?: boolean;
-  /** Called when the player taps the "2x Shards" rewarded button. */
-  onDoubleShards?: () => void;
+  onHome: () => void;
+  /** Blocks placed this run (excluding the foundation). */
+  runBlocksPlaced?: number;
+  /** Best perfect-streak reached this run. */
+  runBestStreak?: number;
+  /** Perfect placements this run. */
+  runPerfects?: number;
 }
 
 export const GameOverModal = React.memo(function GameOverModal({
@@ -47,14 +37,12 @@ export const GameOverModal = React.memo(function GameOverModal({
   canRevive,
   onRestart,
   onRevive,
-  shards,
-  revivesLeft,
-  canDoubleShards,
-  onDoubleShards,
+  onHome,
+  runBlocksPlaced,
+  runBestStreak,
+  runPerfects,
 }: GameOverModalProps) {
-  const orbitMode = shards != null;
-  const reviveLabel =
-    revivesLeft != null ? `Revive (${revivesLeft} left)` : 'Revive & Keep Tower';
+  const reviveLabel = 'Revive & Keep Tower';
 
   return (
     <View style={styles.overlay}>
@@ -78,16 +66,16 @@ export const GameOverModal = React.memo(function GameOverModal({
             <Text style={styles.statValue}>{best}</Text>
             <Text style={styles.statLabel}>BEST</Text>
           </View>
-          {orbitMode && (
-            <>
-              <View style={styles.divider} />
-              <View style={styles.stat}>
-                <Text style={[styles.statValue, styles.shardValue]}>{shards}</Text>
-                <Text style={styles.statLabel}>SHARDS</Text>
-              </View>
-            </>
-          )}
         </View>
+
+        {/* This-run mini-stats row. */}
+        {runBlocksPlaced != null && (
+          <View style={styles.miniRow} pointerEvents="none">
+            <MiniStat icon="cube" label={`${runBlocksPlaced}`} />
+            {runBestStreak != null && <MiniStat icon="flame" label={`${runBestStreak}`} />}
+            {runPerfects != null && <MiniStat icon="sparkles" label={`${runPerfects}`} />}
+          </View>
+        )}
 
         {canRevive && (
           <Pressable
@@ -103,35 +91,49 @@ export const GameOverModal = React.memo(function GameOverModal({
           </Pressable>
         )}
 
-        {orbitMode && canDoubleShards && onDoubleShards && (
+        <View style={styles.buttonRow}>
           <Pressable
             style={({ pressed }) => [
-              styles.doubleButton,
-              pressed && styles.reviveButtonPressed,
+              styles.secondaryButton,
+              pressed && styles.buttonPressed,
             ]}
-            onPress={onDoubleShards}
-            android_ripple={{ color: 'rgba(255,255,255,0.2)', radius: 200 }}
+            onPress={onHome}
+            android_ripple={{ color: 'rgba(255,255,255,0.15)', radius: 200 }}
           >
-            <Ionicons name="diamond" size={18} color="#0f0f1a" />
-            <Text style={styles.reviveText}>2x Shards</Text>
+            <Ionicons name="home" size={18} color="#fff" />
+            <Text style={styles.secondaryText}>HOME</Text>
           </Pressable>
-        )}
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.button,
-            pressed && styles.buttonPressed,
-          ]}
-          onPress={onRestart}
-          android_ripple={{ color: 'rgba(255,255,255,0.15)', radius: 200 }}
-        >
-          <Ionicons name="refresh" size={20} color="#0f0f1a" />
-          <Text style={styles.buttonText}>RESTART</Text>
-        </Pressable>
+          <Pressable
+            style={({ pressed }) => [
+              styles.button,
+              pressed && styles.buttonPressed,
+            ]}
+            onPress={onRestart}
+            android_ripple={{ color: 'rgba(255,255,255,0.15)', radius: 200 }}
+          >
+            <Ionicons name="refresh" size={20} color="#0f0f1a" />
+            <Text style={styles.buttonText}>RESTART</Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );
 });
+
+interface MiniStatProps {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+}
+
+function MiniStat({ icon, label }: MiniStatProps) {
+  return (
+    <View style={styles.miniStat}>
+      <Ionicons name={icon} size={13} color="rgba(255,255,255,0.6)" />
+      <Text style={styles.miniStatText}>{label}</Text>
+    </View>
+  );
+}
 
 const styles = StyleSheet.create({
   overlay: {
@@ -141,7 +143,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   card: {
-    width: 300,
+    width: 320,
     backgroundColor: '#1a1a2e',
     borderRadius: 20,
     paddingVertical: 28,
@@ -177,14 +179,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginVertical: 22,
   },
-  stat: { alignItems: 'center', paddingHorizontal: 14 },
+  stat: { alignItems: 'center', paddingHorizontal: 18 },
   statValue: {
     color: '#fff',
     fontFamily: FONT_BODY_EXTRA_BOLD,
     fontSize: 30,
-  },
-  shardValue: {
-    color: '#4cc9f0',
   },
   statLabel: {
     color: 'rgba(255,255,255,0.5)',
@@ -198,19 +197,25 @@ const styles = StyleSheet.create({
     height: 44,
     backgroundColor: 'rgba(255,255,255,0.12)',
   },
+  miniRow: {
+    flexDirection: 'row',
+    gap: 18,
+    marginBottom: 18,
+  },
+  miniStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  miniStatText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontFamily: FONT_BODY_BOLD,
+    marginLeft: 4,
+    fontSize: 12,
+  },
   reviveButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffd166',
-    paddingVertical: 12,
-    paddingHorizontal: 22,
-    borderRadius: 30,
-    marginBottom: 12,
-  },
-  doubleButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#4cc9f0',
     paddingVertical: 12,
     paddingHorizontal: 22,
     borderRadius: 30,
@@ -224,14 +229,36 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     fontSize: 15,
   },
+  buttonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 4,
+  },
+  secondaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  secondaryText: {
+    color: '#fff',
+    fontFamily: FONT_BODY_BOLD,
+    marginLeft: 6,
+    letterSpacing: 1.5,
+    fontSize: 14,
+  },
   button: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
     paddingVertical: 12,
-    paddingHorizontal: 28,
+    paddingHorizontal: 22,
     borderRadius: 30,
-    marginTop: 4,
   },
   buttonPressed: { opacity: 0.85 },
   buttonText: {

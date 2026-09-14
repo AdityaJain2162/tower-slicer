@@ -62,6 +62,30 @@ export interface HighScoreRecord {
   best: number;
 }
 
+/** Persisted player statistics. */
+export interface PlayerStats {
+  /** Total number of games played (runs started). */
+  gamesPlayed: number;
+  /** Total blocks placed across all runs. */
+  totalBlocksPlaced: number;
+  /** Best (highest) perfect-placement streak ever achieved. */
+  bestStreak: number;
+  /** Total perfect placements across all runs. */
+  totalPerfects: number;
+  /** Current daily-play streak (consecutive days with at least one game). */
+  dailyStreak: number;
+  /** ISO date string (YYYY-MM-DD) of the last day a game was played. */
+  lastPlayedDate: string | null;
+}
+
+/** Persisted user settings. */
+export interface UserSettings {
+  /** True when SFX are muted. */
+  soundEnabled: boolean;
+  /** True when haptic feedback is enabled. */
+  hapticsEnabled: boolean;
+}
+
 /** Event emitted by the engine after each tap, consumed by the UI/audio layer. */
 export type GameEvent =
   | { type: 'hit'; id: number }

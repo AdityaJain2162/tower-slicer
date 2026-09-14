@@ -2,15 +2,16 @@
  * Game — composes the engine with all UI: the tap surface (Gesture.Tap for
  * zero-latency input), the Tower, HUD, StartScreen, GameOverModal, the
  * game-over flash + tower shake effects, the floating combo labels, the audio
- * SFX system, and the rewarded-ad revive flow.
+ * SFX system, the rewarded-ad revive flow, the settings panel, and the
+ * persistent stats/settings hooks.
  *
- * The HUD (with its mute toggle) and the GameOverModal are rendered OUTSIDE
- * the GestureDetector so their Pressable buttons receive touches directly
- * instead of being claimed by the stage's Tap gesture.
+ * The HUD (with its mute toggle), the GameOverModal, and the SettingsPanel
+ * are rendered OUTSIDE the GestureDetector so their Pressable buttons receive
+ * touches directly instead of being claimed by the stage's Tap gesture.
  *
  * Also manages: fullscreen immersive mode (hides status + nav bars),
  * keep-screen-awake during gameplay, and Android hardware back-button
- * confirmation before exiting.
+ * handling (closes settings if open, else confirms exit).
  */
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, BackHandler, Platform, StyleSheet, View } from 'react-native';
@@ -30,6 +31,9 @@ import Animated, {
 import { useGameEngine } from '@/hooks/useGameEngine';
 import { useAudio } from '@/hooks/useAudio';
 import { useRewardedAd } from '@/hooks/useRewardedAd';
+import { useStats } from '@/hooks/useStats';
+import { useSettings } from '@/hooks/useSettings';
+import { setHapticsEnabled } from '@/services/haptics';
 import { Tower } from './Tower';
 import { HUD } from './HUD';
 import { StartScreen } from './StartScreen';
@@ -37,6 +41,7 @@ import { GameOverModal } from './GameOverModal';
 import { FloatingComboText } from './FloatingComboText';
 import { Background } from './Background';
 import { BannerAd } from './BannerAd';
+import { SettingsPanel } from './SettingsPanel';
 
 const SHAKE_DURATION_MS = 50;
 const SHAKE_COUNT = 6;
@@ -53,6 +58,8 @@ export default function Game() {
   const engine = useGameEngine();
   const audio = useAudio();
   const { isLoaded: adLoaded, showAd } = useRewardedAd();
+  const { stats, loading: statsLoading, recordRun, resetStats } = useStats();
+  const { settings, loading: settingsLoading, setSoundEnabled, setHapticsEnabled: setHapticsPref } = useSettings();
   // Keep screen awake while the game is mounted.
   useKeepAwake();
 
@@ -69,10 +76,14 @@ export default function Game() {
     towerShiftY,
     lastEvent,
     hasRevived,
+    runBlocksPlaced,
+    runPerfects,
+    runBestStreak,
     start,
     handleTap,
     restart,
     revive,
+    goHome,
     removeSlicedPiece,
   } = engine;
 
@@ -80,6 +91,10 @@ export default function Game() {
   const flashOpacity = useSharedValue(0);
   const [isNewBest, setIsNewBest] = useState(false);
   const [floating, setFloating] = useState<FloatingMsg | null>(null);
+  const [settingsVisible, setSettingsVisible] = useState(false);
+  // Track whether stats for the current run have been recorded (avoid double
+  // counting if the game-over effect fires twice or the player revives).
+  const [statsRecorded, setStatsRecorded] = useState(false);
 
   const onTap = useCallback(() => {
     if (gameState === 'IDLE') {
@@ -111,7 +126,7 @@ export default function Game() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastEvent]);
 
-  // Trigger game-over effects when entering GAMEOVER.
+  // Trigger game-over effects + record stats when entering GAMEOVER.
   useEffect(() => {
     if (gameState !== 'GAMEOVER') return;
     // Tower shake: ±6px alternating with decay, then settle.
@@ -130,7 +145,23 @@ export default function Game() {
       withTiming(0, { duration: FLASH_DURATION_MS }),
     );
     setIsNewBest(score > 0 && score >= best);
-  }, [gameState, shakeX, flashOpacity, score, best]);
+    // Record run stats once per game-over (not on revive).
+    if (!statsRecorded) {
+      setStatsRecorded(true);
+      void recordRun({
+        blocksPlaced: runBlocksPlaced,
+        runBestStreak,
+        perfectsThisRun: runPerfects,
+      });
+    }
+  }, [gameState, shakeX, flashOpacity, score, best, statsRecorded, recordRun, runBlocksPlaced, runBestStreak, runPerfects]);
+
+  // Reset the stats-recorded flag when a new run starts.
+  useEffect(() => {
+    if (gameState === 'PLAYING' && statsRecorded) {
+      setStatsRecorded(false);
+    }
+  }, [gameState, statsRecorded]);
 
   // Cancel any lingering shake/flash when leaving GAMEOVER.
   useEffect(() => {
@@ -141,6 +172,21 @@ export default function Game() {
       flashOpacity.value = 0;
     }
   }, [gameState, shakeX, flashOpacity]);
+
+  // Apply sound setting to the audio hook (mute when disabled).
+  useEffect(() => {
+    if (!settingsLoading && !settings.soundEnabled && !audio.muted) {
+      audio.toggleMute();
+    } else if (!settingsLoading && settings.soundEnabled && audio.muted) {
+      audio.toggleMute();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settingsLoading, settings.soundEnabled]);
+
+  // Apply haptics setting to the haptics service.
+  useEffect(() => {
+    setHapticsEnabled(settings.hapticsEnabled);
+  }, [settings.hapticsEnabled]);
 
   // Fullscreen immersive mode — hide status bar + Android navigation bar.
   useEffect(() => {
@@ -165,11 +211,17 @@ export default function Game() {
     };
   }, []);
 
-  // Android hardware back-button → confirmation dialog before exiting.
+  // Android hardware back-button handling.
+  // - If settings panel is open → close it.
+  // - Else confirm exit.
   useEffect(() => {
     const subscription = BackHandler.addEventListener(
       'hardwareBackPress',
       () => {
+        if (settingsVisible) {
+          setSettingsVisible(false);
+          return true;
+        }
         Alert.alert(
           'Exit Game?',
           'Are you sure you want to quit Tower Slicer?',
@@ -182,7 +234,7 @@ export default function Game() {
       },
     );
     return () => subscription.remove();
-  }, []);
+  }, [settingsVisible]);
 
   const shakeStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: shakeX.value }],
@@ -200,6 +252,11 @@ export default function Game() {
   }, [showAd, revive, audio]);
 
   const canRevive = !hasRevived && adLoaded;
+
+  const handleResetProgress = useCallback(async () => {
+    await resetStats();
+    setSettingsVisible(false);
+  }, [resetStats]);
 
   return (
     <GestureHandlerRootView style={styles.root}>
@@ -222,7 +279,13 @@ export default function Game() {
           />
 
           {gameState === 'IDLE' && (
-            <StartScreen best={best} bestLoading={bestLoading} />
+            <StartScreen
+              best={best}
+              bestLoading={bestLoading}
+              stats={stats}
+              statsLoading={statsLoading}
+              onOpenSettings={() => setSettingsVisible(true)}
+            />
           )}
 
           {/* Game-over red flash */}
@@ -258,8 +321,22 @@ export default function Game() {
           canRevive={canRevive}
           onRestart={restart}
           onRevive={handleRevive}
+          onHome={goHome}
+          runBlocksPlaced={runBlocksPlaced}
+          runBestStreak={runBestStreak}
+          runPerfects={runPerfects}
         />
       )}
+
+      {/* Settings panel — modal overlay, only meaningful from the start screen. */}
+      <SettingsPanel
+        visible={settingsVisible}
+        settings={settings}
+        onClose={() => setSettingsVisible(false)}
+        onToggleSound={setSoundEnabled}
+        onToggleHaptics={setHapticsPref}
+        onResetProgress={handleResetProgress}
+      />
 
       {/* Bottom banner ad (placeholder in Expo Go / web; real ad with dev client) */}
       <View style={styles.bannerWrap}>

@@ -48,6 +48,9 @@ jobs:
       - name: Game engine tests
         run: npx tsx --tsconfig tsconfig.json src/hooks/useGameEngine.test.ts
 
+      - name: Date/streak tests
+        run: npx tsx --tsconfig tsconfig.json src/utils/date.test.ts
+
       - name: Ad config validation
         run: npx tsx --tsconfig tsconfig.json src/config/ads.test.ts
 

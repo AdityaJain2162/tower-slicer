@@ -23,6 +23,7 @@ React Native Reanimated, and react-native-gesture-handler.
   - `npx tsx --tsconfig tsconfig.json src/utils/slicing.test.ts`
   - `npx tsx --tsconfig tsconfig.json src/utils/color.test.ts`
   - `npx tsx --tsconfig tsconfig.json src/hooks/useGameEngine.test.ts`
+  - `npx tsx --tsconfig tsconfig.json src/utils/date.test.ts`
   - `npx tsx --tsconfig tsconfig.json src/config/ads.test.ts`
 
 ## Architecture
@@ -32,7 +33,8 @@ React Native Reanimated, and react-native-gesture-handler.
   (screen dimensions). Math/logic imports only from `game.ts` so it stays
   unit-testable in plain Node.
 - `src/utils` — pure logic: `slicing.ts` (overlap + slice math),
-  `color.ts` (HSL gradient), `engine.ts` (speed scaling + direction).
+  `color.ts` (HSL gradient), `engine.ts` (speed scaling + direction),
+  `date.ts` (daily-streak date helpers).
 - `src/services/haptics.ts` — expo-haptics wrapper (all try/catch guarded).
 - `src/services/ads.ts` / `ads.native.ts` — platform-split AdMob service
   (web stub vs native require) so Metro never bundles the native-only ads
@@ -40,12 +42,16 @@ React Native Reanimated, and react-native-gesture-handler.
 - `src/config/ads.ts` — AdMob ad unit IDs (test IDs by default; swap in
   real IDs when you have an AdMob account — instructions in the file).
 - `src/hooks` — `useHighScore` (AsyncStorage), `useGameEngine` (state
-  machine + Reanimated SharedValues + combo expansion + revive),
-  `useAudio` (expo-av SFX + persistent mute), `useRewardedAd` (AdMob
-  rewarded video + mock fallback), `useFonts` (Press Start 2P + Inter).
+  machine + Reanimated SharedValues + combo expansion + revive + per-run
+  stats), `useAudio` (expo-av SFX + persistent mute), `useRewardedAd`
+  (AdMob rewarded video + mock fallback), `useFonts` (Press Start 2P +
+  Inter), `useStats` (games played, blocks placed, best streak, daily
+  streak), `useSettings` (sound + haptics preferences).
 - `src/components` — `Block`, `SlicedPiece`, `ActiveBlock`, `Tower`,
-  `HUD`, `StartScreen`, `GameOverModal`, `FloatingComboText`, `Background`
-  (gradient + grid), `BannerAd` (placeholder/real), `Game` (root).
+  `HUD`, `StartScreen` (logo + best + daily streak + settings button),
+  `GameOverModal` (run stats + home button), `FloatingComboText`,
+  `Background` (gradient + grid), `BannerAd` (placeholder/real),
+  `SettingsPanel` (sound/haptics toggles + reset progress), `Game` (root).
 - `src/assets/sounds` — four generated WAV SFX (regenerate via
   `node scripts/gen-sounds.js`).
 

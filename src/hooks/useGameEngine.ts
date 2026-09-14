@@ -71,6 +71,12 @@ export interface UseGameEngineResult {
   lastEvent: GameEvent | null;
   /** True once the player has used their one allowed revive this run. */
   hasRevived: boolean;
+  /** Blocks placed in the current (or most recent) run, excluding foundation. */
+  runBlocksPlaced: number;
+  /** Perfect placements in the current (or most recent) run. */
+  runPerfects: number;
+  /** Best (highest) perfect streak reached in the current (or most recent) run. */
+  runBestStreak: number;
   /** Start a new run from IDLE or GAMEOVER. */
   start: () => void;
   /** Read activeX and resolve the slice. Triggers haptics + state updates. */
@@ -79,6 +85,8 @@ export interface UseGameEngineResult {
   restart: () => void;
   /** Use the one-shot revive: reset active block to top width, resume play. */
   revive: () => void;
+  /** Return to the IDLE (start) screen from GAMEOVER without a new run. */
+  goHome: () => void;
   /** Remove a finished falling sliced piece by id. */
   removeSlicedPiece: (id: number) => void;
 }
@@ -93,6 +101,10 @@ export function useGameEngine(): UseGameEngineResult {
   const [streak, setStreak] = useState(0);
   const [lastEvent, setLastEvent] = useState<GameEvent | null>(null);
   const [hasRevived, setHasRevived] = useState(false);
+  // Per-run stats (reset on start, persisted through game-over for the modal).
+  const [runBlocksPlaced, setRunBlocksPlaced] = useState(0);
+  const [runPerfects, setRunPerfects] = useState(0);
+  const [runBestStreak, setRunBestStreak] = useState(0);
 
   // Active block params. Layer 0 is the foundation; the first *moving* block
   // is layer 1.
@@ -128,6 +140,9 @@ export function useGameEngine(): UseGameEngineResult {
     setStreak(0);
     setLastEvent(null);
     setHasRevived(false);
+    setRunBlocksPlaced(0);
+    setRunPerfects(0);
+    setRunBestStreak(0);
     // towerShiftY = activeLayer * BLOCK_HEIGHT keeps the active layer (layer 1)
     // vertically centered while the foundation sits one block below it.
     towerShiftY.value = BLOCK_HEIGHT;
@@ -182,13 +197,18 @@ export function useGameEngine(): UseGameEngineResult {
       return;
     }
 
+    // Track per-run stats (count this placement).
+    setRunBlocksPlaced((n) => n + 1);
+
     let placed = result.placed!;
     let nextWidth = result.nextWidth;
 
     if (result.perfect) {
       hapticPerfect();
+      setRunPerfects((n) => n + 1);
       const newStreak = streak + 1;
       setStreak(newStreak);
+      setRunBestStreak((s) => Math.max(s, newStreak));
 
       // Combo Expansion: at streak >= 5 and odd, grow the placed block back.
       if (newStreak >= COMBO_EXPANSION_THRESHOLD && newStreak % 2 === 1) {
@@ -257,6 +277,10 @@ export function useGameEngine(): UseGameEngineResult {
     setGameState('PLAYING');
   }, [gameState, hasRevived, tower, active.layer, activeX]);
 
+  const goHome = useCallback(() => {
+    setGameState('IDLE');
+  }, []);
+
   return useMemo(
     () => ({
       gameState,
@@ -271,12 +295,16 @@ export function useGameEngine(): UseGameEngineResult {
       towerShiftY,
       lastEvent,
       hasRevived,
+      runBlocksPlaced,
+      runPerfects,
+      runBestStreak,
       start,
       handleTap,
       restart,
       revive,
+      goHome,
       removeSlicedPiece,
     }),
-    [gameState, score, streak, best, bestLoading, tower, slicedPieces, active, activeX, towerShiftY, lastEvent, hasRevived, start, handleTap, restart, revive, removeSlicedPiece],
+    [gameState, score, streak, best, bestLoading, tower, slicedPieces, active, activeX, towerShiftY, lastEvent, hasRevived, runBlocksPlaced, runPerfects, runBestStreak, start, handleTap, restart, revive, goHome, removeSlicedPiece],
   );
 }

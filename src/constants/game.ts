@@ -31,6 +31,12 @@ export const HUE_STEP_DEG = 6;
 /** AsyncStorage key for the persisted high score. */
 export const HIGH_SCORE_KEY = '@tower_slicer/high_score';
 
+/** AsyncStorage key for persisted player statistics. */
+export const STATS_KEY = '@tower_slicer/stats';
+
+/** AsyncStorage key for persisted user settings. */
+export const SETTINGS_KEY = '@tower_slicer/settings';
+
 /** Vertical offset (px) the active layer sits above the tower anchor. */
 export const ACTIVE_LAYER_OFFSET = BLOCK_HEIGHT;
 
