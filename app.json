@@ -27,6 +27,7 @@
     "plugins": [
       "expo-font",
       "expo-asset",
+      "expo-navigation-bar",
       [
         "react-native-google-mobile-ads",
         {

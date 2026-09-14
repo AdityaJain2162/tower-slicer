@@ -7,10 +7,16 @@
  * The HUD (with its mute toggle) and the GameOverModal are rendered OUTSIDE
  * the GestureDetector so their Pressable buttons receive touches directly
  * instead of being claimed by the stage's Tap gesture.
+ *
+ * Also manages: fullscreen immersive mode (hides status + nav bars),
+ * keep-screen-awake during gameplay, and Android hardware back-button
+ * confirmation before exiting.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Alert, BackHandler, Platform, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { NavigationBar } from 'expo-navigation-bar';
+import { useKeepAwake } from 'expo-keep-awake';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
   useAnimatedStyle,
@@ -47,6 +53,8 @@ export default function Game() {
   const engine = useGameEngine();
   const audio = useAudio();
   const { isLoaded: adLoaded, showAd } = useRewardedAd();
+  // Keep screen awake while the game is mounted.
+  useKeepAwake();
 
   const {
     gameState,
@@ -134,6 +142,48 @@ export default function Game() {
     }
   }, [gameState, shakeX, flashOpacity]);
 
+  // Fullscreen immersive mode — hide status bar + Android navigation bar.
+  useEffect(() => {
+    // Hide the Android navigation bar on mount (Android only).
+    if (Platform.OS === 'android') {
+      try {
+        NavigationBar.setHidden(true);
+        NavigationBar.setStyle('dark');
+      } catch {
+        // Navigation bar module not available (e.g. Expo Go) — no-op.
+      }
+    }
+    // Restore the nav bar when the app exits / unmounts.
+    return () => {
+      if (Platform.OS === 'android') {
+        try {
+          NavigationBar.setHidden(false);
+        } catch {
+          // no-op
+        }
+      }
+    };
+  }, []);
+
+  // Android hardware back-button → confirmation dialog before exiting.
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        Alert.alert(
+          'Exit Game?',
+          'Are you sure you want to quit Tower Slicer?',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Exit', style: 'destructive', onPress: () => BackHandler.exitApp() },
+          ],
+        );
+        return true; // prevent default back behavior
+      },
+    );
+    return () => subscription.remove();
+  }, []);
+
   const shakeStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: shakeX.value }],
   }));
@@ -153,7 +203,7 @@ export default function Game() {
 
   return (
     <GestureHandlerRootView style={styles.root}>
-      <StatusBar style="light" />
+      <StatusBar style="light" hidden={true} />
       <GestureDetector
         gesture={Gesture.Tap().runOnJS(true).onEnd(() => onTap())}
       >
